@@ -6,6 +6,9 @@ from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
+from dotenv import load_dotenv
+
+load_dotenv()
 
 # Import all models so Alembic can detect schema
 from app.database import Base
@@ -51,6 +54,10 @@ async def run_async_migrations() -> None:
         cfg,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
+        connect_args={
+            "prepared_statement_cache_size": 0,
+            "statement_cache_size": 0,
+        },
     )
     async with connectable.connect() as connection:
         await connection.run_sync(do_run_migrations)

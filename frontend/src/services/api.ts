@@ -14,7 +14,8 @@ export const api = {
     const url = `${API_BASE_URL}/profiles${params.toString() ? `?${params.toString()}` : ''}`;
     const response = await fetch(url, { cache: 'no-store' });
     if (!response.ok) throw new Error('Failed to fetch profiles');
-    return response.json();
+    const data = await response.json();
+    return data.profiles || [];
   },
 
   getProfile: async (slug: string): Promise<Profile> => {

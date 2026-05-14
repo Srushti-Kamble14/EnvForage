@@ -143,6 +143,9 @@ accepts `DiagnosticReportSchema` JSON. The CLI agent package itself is Phase 2.
 - Idempotent seed service loads profiles from `seeds/profiles.yaml` on startup
 - `selectinload` used for all relationship eager loading (prevents N+1 queries)
 
+**Important Note on Managed PostgreSQL (Supabase)**:
+Because Supabase has transitioned its default database endpoints (`db.[ref].supabase.co`) to be IPv6-only, local development on IPv4 networks will face `ConnectionRefusedError` (e.g., `WinError 1225`). To connect locally, you must use the **Supavisor Connection Pooler** in **Session Mode** (port 5432) for Alembic migrations and the backend, which provides an IPv4 address (`aws-0-[region].pooler.supabase.com`).
+
 ---
 
 ## 4. Backend/Frontend Boundary
