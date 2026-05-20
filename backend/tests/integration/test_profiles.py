@@ -20,7 +20,7 @@ async def client(db_session):
         transport=ASGITransport(app=app), base_url="http://test"
     ) as c:
         yield c
-    app.dependency_overrides.clear()
+    app.dependency_overrides.pop(get_db, None)
 
 
 async def test_profile_crud_lifecycle(client, db_session):
