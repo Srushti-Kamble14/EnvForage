@@ -1,4 +1,3 @@
-cat > backend/tests/unit/test_health.py << 'EOF'
 """Tests for the /health endpoint."""
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -32,7 +31,7 @@ def _mock_redis_ok():
 
 def test_health_all_ok():
     with (
-        patch("app.main.AsyncSessionLocal", return_value=_mock_db_ok()),
+        patch("app.database.AsyncSessionLocal", return_value=_mock_db_ok()),
         patch("app.cache.get_redis_client", new=AsyncMock(return_value=_mock_redis_ok())),
     ):
         response = client.get("/health")
@@ -52,7 +51,7 @@ def test_health_db_unavailable():
     bad_cm.__aexit__ = AsyncMock(return_value=False)
 
     with (
-        patch("app.main.AsyncSessionLocal", return_value=bad_cm),
+        patch("app.database.AsyncSessionLocal", return_value=bad_cm),
         patch("app.cache.get_redis_client", new=AsyncMock(return_value=_mock_redis_ok())),
     ):
         response = client.get("/health")
@@ -70,7 +69,7 @@ def test_health_redis_unavailable():
     dead_redis.ping = AsyncMock(side_effect=Exception("redis connection refused"))
 
     with (
-        patch("app.main.AsyncSessionLocal", return_value=_mock_db_ok()),
+        patch("app.database.AsyncSessionLocal", return_value=_mock_db_ok()),
         patch("app.cache.get_redis_client", new=AsyncMock(return_value=dead_redis)),
     ):
         response = client.get("/health")
@@ -92,7 +91,7 @@ def test_health_both_unavailable():
     dead_redis.ping = AsyncMock(side_effect=Exception("redis down"))
 
     with (
-        patch("app.main.AsyncSessionLocal", return_value=bad_cm),
+        patch("app.database.AsyncSessionLocal", return_value=bad_cm),
         patch("app.cache.get_redis_client", new=AsyncMock(return_value=dead_redis)),
     ):
         response = client.get("/health")
@@ -107,7 +106,7 @@ def test_health_both_unavailable():
 
 def test_health_redis_not_configured():
     with (
-        patch("app.main.AsyncSessionLocal", return_value=_mock_db_ok()),
+        patch("app.database.AsyncSessionLocal", return_value=_mock_db_ok()),
         patch("app.cache.get_redis_client", new=AsyncMock(return_value=None)),
     ):
         response = client.get("/health")
@@ -115,4 +114,3 @@ def test_health_redis_not_configured():
     body = response.json()
     assert body["status"] == "healthy"
     assert body["services"]["redis"] == "not_configured"
-EOF

@@ -1,9 +1,9 @@
-cat > backend/app/cache.py << 'EOF'
 """
 Redis client management.
 Returns None if redis_url is not configured (optional dependency).
 """
 import redis.asyncio as aioredis
+
 from app.config import get_settings
 
 _redis_client: aioredis.Redis | None = None
@@ -28,4 +28,3 @@ async def get_redis_client() -> aioredis.Redis | None:
         )
 
     return _redis_client
-EOF
