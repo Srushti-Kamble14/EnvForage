@@ -12,7 +12,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from jinja2 import Environment, FileSystemLoader, StrictUndefined,select_autoescape
+from jinja2 import (
+    Environment,
+    FileSystemLoader,
+    StrictUndefined,
+    select_autoescape,
+)
 
 from app.ai.prompts.system import AVAILABLE_REPAIR_TEMPLATES
 from app.templates.safety import validate_rendered_output
