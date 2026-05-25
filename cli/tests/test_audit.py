@@ -178,8 +178,9 @@ class TestAuditCommand:
 
         result = CliRunner().invoke(audit_command, [str(a), str(b)])
         assert result.exit_code == 0
-        assert "django" in result.output
-        assert "major" in result.output
+        normalized = result.output.lower()
+        assert "django" in normalized
+        assert "major" in normalized
 
     def test_audit_identical_lockfiles_reports_no_drift(self, tmp_path: Path):
         a = tmp_path / "a.txt"
@@ -194,6 +195,7 @@ class TestAuditCommand:
     def test_audit_invalid_source_errors(self):
         result = CliRunner().invoke(audit_command, ["/does/not/exist.txt", "local"])
         assert result.exit_code == 2
+        assert "could not interpret source" in result.output.lower()
         
 class TestLocalEnvironmentErrors:
     @patch("envforge_agent.audit.sources.subprocess.run")
@@ -217,3 +219,9 @@ class TestLocalEnvironmentErrors:
         )
         with pytest.raises(RuntimeError, match=r"malformed JSON"):
             list(LocalEnvironment().packages())
+            
+    @patch("envforge_agent.audit.sources.subprocess.run")
+    def test_missing_interpreter_raises_runtime_error(self, mock_run):
+        mock_run.side_effect = FileNotFoundError("python not found")
+        with pytest.raises(RuntimeError, match=r"Could not execute Python interpreter"):
+            list(LocalEnvironment(python_executable="/bad/python").packages())

@@ -65,7 +65,10 @@ def format_text(result: AuditResult, console: Console) -> None:
     for entry in result.differences:
         counts[entry.severity] = counts.get(entry.severity, 0) + 1
 
-    summary = ", ".join(f"{count} {sev}" for sev, count in sorted(counts.items()))
+    summary = ", ".join(
+        f"{counts[sev]} {sev}"
+        for sev in sorted(counts, key=lambda s: SEVERITY_ORDER.get(s, 99))
+    )
     console.print(
         f"\n[bold]Summary:[/] {len(result.differences)} differences "
         f"({summary}); {result.common_count} matching packages."
