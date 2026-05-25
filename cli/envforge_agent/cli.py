@@ -28,6 +28,7 @@ from envforge_agent.report import ReportBuilder
 from envforge_agent.schemas import DiagnosticReport
 
 from envforge_agent.utils import _map_os_to_target, _extract_python_version
+from envforge_agent.audit import audit_command
 
 console = Console()
 err_console = Console(stderr=True, style="bold red")
@@ -539,6 +540,7 @@ def fix(report: str, profile: str, api_url: str, dry_run: bool) -> None:
         err_console.print(f"API error {e.response.status_code}: {e.response.text}")
         sys.exit(1)
 
+cli.add_command(audit_command)
 # ── envforge rollback ──────────────────────────────────────────────────────────
 
 @cli.command("rollback")
