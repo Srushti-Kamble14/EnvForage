@@ -161,4 +161,3 @@ class GenerationRequest(BaseModel):
         description="Requested CUDA version.",
         examples=["12.1"],
     )
-    

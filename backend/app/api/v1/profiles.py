@@ -185,4 +185,4 @@ async def delete_profile(
             resource=f"Profile '{slug}'",
             error_code="PROFILE_NOT_FOUND",
         )
-    
+

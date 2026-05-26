@@ -79,4 +79,3 @@ async def troubleshoot(
         raise InternalServerError(
             "An unexpected error occurred during AI analysis."
         ) from exc
-    
