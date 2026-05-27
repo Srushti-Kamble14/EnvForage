@@ -2,7 +2,7 @@
 Profile service — business logic for profile CRUD operations.
 """
 import uuid
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -127,7 +127,7 @@ async def delete_profile(
     if not profile:
         return False
 
-    profile.deleted_at = datetime.now(UTC)
+    profile.deleted_at = datetime.now(timezone.utc)
     profile.status = "DELETED"
 
     try:
