@@ -30,6 +30,7 @@ TEMPLATE_MAP: dict[str, str] = {
     "verify_torch.sh":    "verify/verify_torch.sh.j2",
     "verify_tf.sh":       "verify/verify_tf.sh.j2",
     "verify_opencv.sh":   "verify/verify_opencv.sh.j2",
+    "verify_diffusers.sh": "verify/verify_diffusers.sh.j2",
     "environment.yml":    "config/environment.yml.j2",
     "pyproject.toml":     "config/pyproject.toml.j2",
     "pyproject.poetry.toml": "config/poetry.toml.j2",
@@ -41,7 +42,7 @@ PROFILE_VERIFY_TEMPLATES: dict[str, str] = {
     "pytorch-cuda":        "verify_torch.sh",
     "tf-gpu":              "verify_tf.sh",
     "yolov8":              "verify_torch.sh",
-    "stable-diffusion":    "verify_torch.sh",
+    "stable-diffusion":    "verify_diffusers.sh",
     "opencv-beginner":     "verify_opencv.sh",
 }
 

@@ -141,6 +141,47 @@ PYTHON_MATRIX: dict[str, list[FrameworkVersionEntry]] = {
             supported_cuda=["11.8", "12.1", "12.4"],
         ),
     ],
+    "diffusers": [
+        # Hugging Face Diffusers — CUDA support comes via PyTorch dependency.
+        # Source: https://huggingface.co/docs/diffusers/installation
+        # Source: https://github.com/huggingface/diffusers/releases
+        FrameworkVersionEntry(
+            framework="diffusers", version="0.21.0",
+            min_python="3.8", max_python="3.11",
+            supported_python=["3.8", "3.9", "3.10", "3.11"],
+            supported_cuda=["11.7", "11.8", "12.1"],
+        ),
+        FrameworkVersionEntry(
+            framework="diffusers", version="0.24.0",
+            min_python="3.8", max_python="3.11",
+            supported_python=["3.8", "3.9", "3.10", "3.11"],
+            supported_cuda=["11.8", "12.1"],
+        ),
+        FrameworkVersionEntry(
+            framework="diffusers", version="0.25.0",
+            min_python="3.8", max_python="3.12",
+            supported_python=["3.8", "3.9", "3.10", "3.11", "3.12"],
+            supported_cuda=["11.8", "12.1"],
+        ),
+        FrameworkVersionEntry(
+            framework="diffusers", version="0.26.0",
+            min_python="3.8", max_python="3.12",
+            supported_python=["3.8", "3.9", "3.10", "3.11", "3.12"],
+            supported_cuda=["11.8", "12.1"],
+        ),
+        FrameworkVersionEntry(
+            framework="diffusers", version="0.27.0",
+            min_python="3.8", max_python="3.12",
+            supported_python=["3.8", "3.9", "3.10", "3.11", "3.12"],
+            supported_cuda=["11.8", "12.1"],
+        ),
+        FrameworkVersionEntry(
+            framework="diffusers", version="0.27.2",
+            min_python="3.8", max_python="3.12",
+            supported_python=["3.8", "3.9", "3.10", "3.11", "3.12"],
+            supported_cuda=["11.8", "12.1"],
+        ),
+    ],
 }
 
 
