@@ -341,11 +341,11 @@ class AITroubleshootService:
                     db.add(db_suggestion)
 
                 return
-              
+
             except Exception as exc:
                 await db.rollback()
                 # 1. Use logger.exception to capture the full traceback
-                
+
                 logger.error(
                     "Failed to persist AI session " "(attempt %d/%d): %s",
                     attempt + 1,
@@ -366,8 +366,8 @@ class AITroubleshootService:
                         "AI session persistence permanently failed for session %s",
                         session_id,
                     )
-                    raise 
-                 
+                    raise
+
 
         logger.critical(
             "AI session persistence permanently failed" " for session %s",
