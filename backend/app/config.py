@@ -69,6 +69,9 @@ class Settings(BaseSettings):
     rate_limit_ai_rpm: int = 10       # AI troubleshoot: requests per minute
     rate_limit_repair_rpm: int = 20   # Repair endpoint: requests per minute
     rate_limit_general_rpm: int = 60  # General API: requests per minute
+    # ── Admin API Key ─────────────────────────────────────────
+    admin_api_key: str = ""
+
     @model_validator(mode="after")
     def validate_secret_key(self) -> "Settings":
         """
