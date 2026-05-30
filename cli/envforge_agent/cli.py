@@ -25,6 +25,7 @@ from rich import box
 
 from envforge_agent import __version__
 from envforge_agent.report import ReportBuilder
+from envforge_agent.detectors.system_detector import detect_disk
 from envforge_agent.schemas import DiagnosticReport
 
 from envforge_agent.utils import _map_os_to_target, _extract_python_version
@@ -32,6 +33,14 @@ from envforge_agent.audit import audit_command
 
 console = Console()
 err_console = Console(stderr=True, style="bold red")
+
+
+def _reinit_consoles(no_color: bool) -> None:
+    """Reinitialise global consoles with no-color mode if requested."""
+    global console, err_console
+    if no_color:
+        console = Console(no_color=True, highlight=False)
+        err_console = Console(stderr=True, no_color=True, highlight=False)
 
 
 def check_macos_support():
@@ -46,8 +55,18 @@ def check_macos_support():
 
 @click.group()
 @click.version_option(__version__, prog_name="envforge-agent")
-def cli() -> None:
+@click.option(
+    "--no-color",
+    is_flag=True,
+    default=False,
+    envvar="NO_COLOR",
+    help="Disable colour and Rich markup in all output. Useful for CI pipelines.",
+)
+@click.pass_context
+def cli(ctx: click.Context, no_color: bool) -> None:
     """EnvForge CLI Diagnostic Agent — inspect your ML environment."""
+    ctx.ensure_object(dict)
+    _reinit_consoles(no_color)
     check_macos_support()
 
 
@@ -88,7 +107,15 @@ def cli() -> None:
     default=False,
     help="Output diagnostics in SARIF 2.1.0 format for CI/CD pipeline integrations.",
 )
-
+@click.option(
+    "--format",
+    "-f",
+    "output_format",
+    type=click.Choice(["json", "yaml"], case_sensitive=False),
+    default="json",
+    show_default=True,
+    help="Output format for the diagnostic report (json, yaml).",
+)
 @click.option(
     "--timeout", "-t",
     type=int,
@@ -97,7 +124,7 @@ def cli() -> None:
     help="Timeout in seconds for each detector subprocess call. Default: 30s.",
 )
 
-def diagnose(output: str | None, send: bool, api_url: str, quiet: bool, sarif: bool, timeout: int) -> None:
+def diagnose(output: str | None, send: bool, api_url: str, quiet: bool, sarif: bool, timeout: int, output_format: str) -> None:
     """
     Collect a full diagnostic report of this machine's ML environment.
 
@@ -125,16 +152,25 @@ def diagnose(output: str | None, send: bool, api_url: str, quiet: bool, sarif: b
         click.echo(_json.dumps(report.to_sarif(), indent=2))
         return
 
-    report_json = report.to_json(indent=2)
+    if send and output_format != "json":
+        err_console.print(f"[ERROR] --send requires JSON; --format {output_format} is incompatible.")
+        err_console.print("  Hint: Remove --format or drop --send.")
+        sys.exit(1)
+
+    if output_format == "yaml":
+        import yaml
+        report_output = yaml.dump(report.model_dump(mode='json'), default_flow_style=False, sort_keys=False)
+    else:
+        report_output = report.to_json(indent=2)
 
     # ── Output to file ──────────────────────────────────────────────────────
     if output:
-        Path(output).write_text(report_json, encoding="utf-8")
+        Path(output).write_text(report_output, encoding="utf-8")
         if not quiet:
             console.print(f"\n[green][+][/] Report saved to [bold]{output}[/]")
     elif not send:
         # Print JSON to stdout (pipe-friendly)
-        click.echo(report_json)
+        click.echo(report_output)
 
     # ── Send to API ─────────────────────────────────────────────────────────
     if send:
@@ -156,12 +192,21 @@ def _print_report_summary(report: DiagnosticReport) -> None:
         cpu_str += "  [yellow]⚠ WARNING: Under 4 cores — data loading may bottleneck training[/]"
     table.add_row("CPU", cpu_str)
 
+
     ram_str = f"{report.ram.total_gb} GB total, {report.ram.available_gb} GB free"
     if report.ram.total_gb < 8:
         ram_str += "  [bold red][!] CRITICAL: Under 8 GB — heavy ML profiles will fail[/]"
     elif report.ram.total_gb < 16:
         ram_str += "  [yellow][!] WARNING: Under 16 GB — some ML profiles may be slow[/]"
     table.add_row("RAM", ram_str)
+
+    disk_str = f"{report.disk.available_gb:.1f} GB free of {report.disk.total_gb:.1f} GB"
+    if report.disk.available_gb < 5:
+        disk_str += "  [bold red]⚠ CRITICAL: Under 5 GB — setup will likely fail[/]"
+    elif report.disk.available_gb < 20:
+        disk_str += "  [yellow]⚠ WARNING: Low disk space — GPU profiles need 20+ GB[/]"
+    table.add_row("Disk Free", disk_str)
+
 
     if report.gpus:
         for gpu in report.gpus:
@@ -344,7 +389,9 @@ def verify(profile: str | None, output: str | None, quiet: bool) -> None:
             click.echo(json.dumps(res, indent=2))
             sys.exit(1)
 
+
         data = json.loads(proc.stdout.strip())
+
 
         # 3. Analyze checks
         if not data["import_ok"]:
@@ -358,12 +405,15 @@ def verify(profile: str | None, output: str | None, quiet: bool) -> None:
             click.echo(json.dumps(res, indent=2))
             sys.exit(1)
 
+
         # Check if CUDA profile is detected
         is_gpu_profile = False
         if profile:
             is_gpu_profile = any(
                 term in profile.lower() for term in ["cuda", "gpu", "diffusion", "finetune"]
             )
+
+            is_gpu_profile = any(term in profile.lower() for term in ["cuda", "gpu", "diffusion", "finetune"])
 
         if is_gpu_profile and not data["cuda_ok"]:
             if not quiet:
@@ -376,6 +426,7 @@ def verify(profile: str | None, output: str | None, quiet: bool) -> None:
             click.echo(json.dumps(res, indent=2))
             sys.exit(1)
 
+
         # All required checks passed!
         msg = "Environment works: PyTorch imported successfully"
         if data["cuda_ok"]:
@@ -387,6 +438,11 @@ def verify(profile: str | None, output: str | None, quiet: bool) -> None:
             _print_verification_summary(data, is_gpu_profile=is_gpu_profile)
 
         res = {"status": "PASS", "message": msg}
+
+        res = {
+            "status": "PASS",
+            "message": msg
+        }
         click.echo(json.dumps(res, indent=2))
         sys.exit(0)
 
@@ -445,6 +501,7 @@ def _print_verification_summary(data: dict, is_gpu_profile: bool) -> None:
     table.add_row("Installed CUDA Version", "[dim]INFO[/]", f"{cuda_v}")
 
     table.add_row("Required CUDA Profile", "[dim]INFO[/]", ">= 11.8 (Recommended for CUDA paths)")
+
 
     console.print("\n[bold]=== Verification Report ===[/]")
     console.print(table)
@@ -514,8 +571,10 @@ def fix(report: str, profile: str, api_url: str, dry_run: bool) -> None:
 
         console.print(f"[green][+][/] Scripts generated (job: {result.get('job_id', '?')})")
 
+
         if result.get("resolved_packages"):
             console.print(f"  [cyan]Resolved Packages:[/] {', '.join(result['resolved_packages'])}")
+
 
         if dry_run:
             console.print("\n[bold]Files to be generated:[/]")
@@ -627,10 +686,10 @@ def rollback() -> None:
             original_path.rename(temp_original)
 
         shutil.copytree(chosen, original)
-        
+
         if temp_original and temp_original.exists():
             shutil.rmtree(temp_original)
-            
+
         console.print(f"\n[green][+][/] Rollback complete. '[bold]{original}[/]' restored from '[bold]{chosen}[/]'")
 
     except Exception as e:
@@ -645,7 +704,7 @@ def rollback() -> None:
             shutil.rmtree(original_path, ignore_errors=True)
         err_console.print(f"[ERROR] Rollback failed: {e}")
         sys.exit(1)
-    
+
 @cli.command("troubleshoot")
 @click.option(
     "--api-url",
@@ -824,3 +883,122 @@ def troubleshoot(api_url: str) -> None:
             f"[ERROR] Unexpected error: {exc}"
         )
         sys.exit(1)
+
+# ── envforge list ──────────────────────────────────────────────────────────────
+
+@cli.command("list")
+@click.option(
+    "--api-url",
+    default="http://localhost:8000",
+    show_default=True,
+    envvar="ENVFORGE_API_URL",
+    help="Base URL of the EnvForge API.",
+)
+@click.option(
+    "--quiet", "-q", is_flag=True, default=False,
+    help="Suppress all output except the JSON profile list.",
+)
+@click.option(
+    "--filter", "-f", "filter_tag",
+    default=None,
+    help="Filter profiles by tag (e.g. cuda, cpu, diffusion).",
+)
+def list_profiles(api_url: str, quiet: bool, filter_tag: str | None) -> None:
+    """
+    List all available environment profiles from the EnvForge API.
+
+    Fetches from GET /api/v1/profiles and displays a formatted summary table.
+    Use --filter to narrow results by tag.
+    """
+    url = f"{api_url.rstrip('/')}/api/v1/profiles"
+
+    if not quiet:
+        console.print(Panel(
+            f"[bold cyan]EnvForge Profile Registry[/] v{__version__}\n"
+            "[dim]Fetching available environment profiles...[/]",
+            expand=False,
+        ))
+
+    try:
+        profiles: list[dict] = []
+        page = 1
+        limit = 100
+
+        while True:
+            response = httpx.get(url, params={"page": page, "limit": limit}, timeout=15)
+            response.raise_for_status()
+            data = response.json()
+
+            page_profiles = data.get("profiles", []) if isinstance(data, dict) else data
+            if not isinstance(page_profiles, list):
+                err_console.print("[ERROR] Invalid profiles payload from API.")
+                sys.exit(1)
+
+            profiles.extend(page_profiles)
+
+            total = data.get("total") if isinstance(data, dict) else None
+            if not page_profiles or (isinstance(total, int) and len(profiles) >= total):
+                break
+            page += 1
+
+    except httpx.ConnectError:
+        err_console.print(f"[ERROR] Cannot connect to {url}")
+        err_console.print("  Hint: Is the EnvForge API running? Check ENVFORGE_API_URL.")
+        sys.exit(1)
+    except httpx.RequestError as e:
+        err_console.print(f"[ERROR] Request failed for {url}: {e}")
+        sys.exit(1)
+    except httpx.HTTPStatusError as e:
+        err_console.print(f"[ERROR] API returned {e.response.status_code}")
+        err_console.print(e.response.text)
+        sys.exit(1)
+    except ValueError:
+        err_console.print("[ERROR] API returned invalid JSON for /api/v1/profiles")
+        sys.exit(1)
+
+    if filter_tag:
+        profiles = [
+            p for p in profiles
+            if filter_tag.lower() in [t.lower() for t in p.get("tags", [])]
+        ]
+        if not profiles:
+            if quiet:
+                click.echo("[]")
+            else:
+                console.print(f"[yellow]No profiles matched tag:[/] {filter_tag}")
+            return
+
+    if quiet:
+        click.echo(json.dumps(profiles, indent=2))
+        return
+
+    _print_profiles_table(profiles, filter_tag)
+    console.print(
+        f"\n  [dim]{len(profiles)} profile(s) shown. "
+        f"Run [bold]envforge fix --profile <slug>[/] to generate a setup script.[/]"
+    )
+
+def _print_profiles_table(profiles: list, filter_tag: str | None) -> None:
+    table = Table(box=box.ROUNDED, show_header=True, padding=(0, 1), expand=False)
+    table.add_column("Slug", style="bold cyan", no_wrap=True)
+    table.add_column("Name", style="bold")
+    table.add_column("Tags", style="dim")
+    table.add_column("Description")
+
+    for profile in profiles:
+        if isinstance(profile, str):
+            table.add_row(profile, "—", "—", "—")
+        else:
+            slug = profile.get("slug") or profile.get("id") or "?"
+            name = profile.get("name", "—")
+            description = profile.get("description", "—")
+            tags = profile.get("tags") or []
+            tag_str = ", ".join(tags) if tags else "[dim]none[/]"
+            table.add_row(slug, name, tag_str, description)
+
+    header = "[bold]Available Profiles[/]"
+    if filter_tag:
+        header += f" [dim](filtered by tag: {filter_tag})[/]"
+
+    console.print(f"\n{header}")
+    console.print(table)

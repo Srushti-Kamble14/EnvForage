@@ -44,6 +44,7 @@ class Settings(BaseSettings):
     # Required in production for multi-worker correctness.
     # Format: redis://:password@host:port/db  or  redis://host:port/db
     redis_url: str | None = None
+    resolver_cache_ttl_seconds: int = 86400
 
     # ── CORS ─────────────────────────────────────────────────
     allowed_origins: str = "http://localhost:3000"
@@ -73,6 +74,7 @@ class Settings(BaseSettings):
     rate_limit_repair_rpm: int = 20   # Repair endpoint: requests per minute
     rate_limit_general_rpm: int = 60  # General API: requests per minute
 
+<<<<<<< HEAD
     @model_validator(mode="after")
     def validate_secret_key(self) -> "Settings":
         """
@@ -83,9 +85,23 @@ class Settings(BaseSettings):
                 "Production environment requires a strong SECRET_KEY."
             )
         return self
+=======
+    # ── Admin API Key ─────────────────────────────────────────
+    # Protects write operations on shared resources (profile create/delete,
+    # future admin-only endpoints).  Set via ADMIN_API_KEY env var.
+    # When unset the application will refuse all admin requests to avoid
+    # silently running unprotected in production.
+    admin_api_key: str = ""
+>>>>>>> upstream/main
 
 
 @lru_cache
 def get_settings() -> Settings:
+<<<<<<< HEAD
     """Return cached Settings singleton."""
     return Settings()
+=======
+    """Return cached settings singleton."""
+    return Settings()
+
+>>>>>>> upstream/main
