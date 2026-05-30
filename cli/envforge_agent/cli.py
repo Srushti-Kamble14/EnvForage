@@ -159,7 +159,7 @@ def diagnose(output: str | None, send: bool, api_url: str, quiet: bool, sarif: b
 
     if output_format == "yaml":
         import yaml
-        report_output = yaml.dump(report.model_dump(), default_flow_style=False, sort_keys=False)
+        report_output = yaml.dump(report.model_dump(mode='json'), default_flow_style=False, sort_keys=False)
     else:
         report_output = report.to_json(indent=2)
 
