@@ -231,6 +231,8 @@ class CompatibilityResolver:
             rocm_version=rocm_version,
             cuda_variant=constraint.cuda_variant,
         )
+    
+    
     def _resolve_version_range(
         self,
         package_name: str,
