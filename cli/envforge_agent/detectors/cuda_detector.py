@@ -170,11 +170,36 @@ def _detect_cuda_via_registry() -> tuple[str | None, str | None]:
         import winreg
         key_path = r"SOFTWARE\NVIDIA Corporation\GPU Computing Toolkit\CUDA"
         with winreg.OpenKey(winreg.HKEY_LOCAL_MACHINE, key_path) as key:
-            # Find the first subkey (version)
-            version_name = winreg.EnumKey(key, 0)
-            with winreg.OpenKey(key, version_name) as subkey:
-                install_dir = winreg.QueryValueEx(subkey, "InstallDir")[0]
-                return version_name.lstrip("v"), install_dir
+            best_version_tuple = (-1, -1)
+            best_version_str = None
+            best_install_dir = None
+            
+            i = 0
+            while True:
+                try:
+                    version_name = winreg.EnumKey(key, i)
+                    v_str = version_name.lstrip("v")
+                    
+                    # Parse into tuple for reliable comparison (e.g. 12.1 > 11.8)
+                    try:
+                        v_tuple = tuple(int(x) for x in v_str.split("."))
+                    except ValueError:
+                        v_tuple = (0, 0)
+                        
+                    if v_tuple > best_version_tuple:
+                        with winreg.OpenKey(key, version_name) as subkey:
+                            install_dir = winreg.QueryValueEx(subkey, "InstallDir")[0]
+                            best_version_tuple = v_tuple
+                            best_version_str = v_str
+                            best_install_dir = install_dir
+                    i += 1
+                except OSError:
+                    # No more subkeys to enumerate
+                    break
+                    
+            if best_version_str and best_install_dir:
+                return best_version_str, best_install_dir
+            return None, None
     except Exception:
         return None, None
 
