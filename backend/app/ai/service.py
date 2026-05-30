@@ -19,7 +19,7 @@ from datetime import datetime
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
-from sqlalchemy.exc import SQLAlchemyError, OperationalError
+from sqlalchemy.exc import OperationalError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.ai.models import SuggestedFix, TroubleshootRequest, TroubleshootResponse
@@ -27,6 +27,7 @@ from app.ai.prompts.system import LOW_CONFIDENCE_GATE, TROUBLESHOOT_SYSTEM_PROMP
 from app.ai.prompts.troubleshoot import TroubleshootPromptBuilder
 from app.ai.providers import get_provider
 from app.ai.providers.base import LLMProvider, LLMProviderError
+from app.middleware.metrics import record_ai_token_usage
 from app.models.ai_session import AIAuditLog, AISession, AISuggestion
 from app.templates.safety import SafetyViolationError, validate_rendered_output
 
@@ -163,9 +164,19 @@ class AITroubleshootService:
         elif not isinstance(token_usage, dict):
             token_usage = getattr(provider, "_last_usage", None)
 
-        total_tokens = token_usage.get("total_tokens", 0) if token_usage else 0
-        prompt_tokens = token_usage.get("prompt_tokens", 0) if token_usage else 0
-        completion_tokens = token_usage.get("completion_tokens", 0) if token_usage else 0
+        total_tokens = 0
+        prompt_tokens = 0
+        completion_tokens = 0
+        
+        if isinstance(token_usage, dict):
+            t_val = token_usage.get("total_tokens", 0)
+            total_tokens = t_val if isinstance(t_val, int) else 0
+            
+            p_val = token_usage.get("prompt_tokens", 0)
+            prompt_tokens = p_val if isinstance(p_val, int) else 0
+            
+            c_val = token_usage.get("completion_tokens", 0)
+            completion_tokens = c_val if isinstance(c_val, int) else 0
 
         record_ai_token_usage(
             provider=provider_name,
